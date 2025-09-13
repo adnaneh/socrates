@@ -6,7 +6,6 @@ import { DefaultChatTransport } from "ai";
 import { useAutoScroll } from "./hooks/useAutoScroll";
 import { useSocketAudio } from "./hooks/useSocketAudio";
 import { ChatMessage } from "./components/ChatMessage";
-import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 
 function hasResponseId(data: unknown): data is { responseId: string } {
   return (
@@ -69,36 +68,16 @@ export default function ClientApp() {
     [sendMessage]
   );
 
-  // Voice input via browser SpeechRecognition
-  const {
-    supported: voiceSupported,
-    listening,
-    transcript,
-    error: srError,
-    start: startListening,
-    stop: stopListening,
-    reset: resetVoice,
-  } = useSpeechRecognition({
-    autoSendOnStop: true,
-    onFinal: (text) => {
-      if (!connected || loading) return;
-      quick(text);
-      // Clear typed input after sending via voice
-      setInput("");
-      resetVoice();
-    },
-  });
-
   const onSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (loading || !connected || listening) return;
+      if (loading || !connected) return;
       const q = input.trim();
       if (!q) return;
       quick(q);
       setInput("");
     },
-    [input, quick, loading, connected, listening]
+    [input, quick, loading, connected]
   );
 
   return (
@@ -139,41 +118,22 @@ export default function ClientApp() {
         {!connected && <p className="text-sm text-amber-600 mt-1">Connecting to audio… please wait</p>}
       </section>
 
-      <form onSubmit={onSubmit} className="flex gap-2 items-center">
+      <form onSubmit={onSubmit} className="flex gap-2">
         <input
-          value={listening ? (transcript || input) : input}
+          value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={voiceSupported ? "Ask anything or use the mic" : "Ask anything"}
+          placeholder="Ask anything"
           className="flex-1 border p-2 rounded"
           disabled={!connected}
         />
         <button
-          type="button"
-          onClick={() => (listening ? stopListening() : startListening())}
-          title={voiceSupported ? (listening ? "Stop recording" : "Start voice input") : "Voice input not supported in this browser"}
-          aria-pressed={listening}
-          className={`px-3 py-2 rounded border ${
-            listening
-              ? "bg-red-600 text-white border-red-700"
-              : voiceSupported
-              ? "bg-white hover:bg-gray-50 text-gray-800 border-gray-300"
-              : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-          }`}
-          disabled={!voiceSupported || !connected || loading}
-        >
-          {listening ? "● Rec" : "🎙️ Mic"}
-        </button>
-        <button
           type="submit"
           className="bg-black text-white px-4 py-2 rounded disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-          disabled={loading || !connected || listening || input.trim().length === 0}
+          disabled={loading || !connected || input.trim().length === 0}
         >
           Send
         </button>
       </form>
-      {srError && (
-        <p className="text-sm text-amber-600">Microphone error: {srError}</p>
-      )}
     </main>
   );
 }
